@@ -112,7 +112,7 @@ cd bloodify
 mvn clean compile spring-boot:run
 ````
 
-Open: [http://localhost:8080](http://localhost:8080)
+Open: https://bloodify-healthcare-dashboard.onrender.com
 
 ---
 
