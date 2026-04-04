@@ -6,8 +6,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.2.3</version>
-        <relativePath/> <!-- lookup parent from repository -->
-    </parent>
+        <relativePath/> </parent>
     <groupId>com.bloodify</groupId>
     <artifactId>bloodify-app</artifactId>
     <version>1.0.0</version>
@@ -34,7 +33,6 @@
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
         </dependency>
-        <!-- iText for PDF Generation -->
         <dependency>
             <groupId>com.itextpdf</groupId>
             <artifactId>itext7-core</artifactId>
@@ -53,8 +51,6 @@
         </dependency>
     </dependencies>
 
-    </dependencies>
-
     <build>
         <finalName>bloodify</finalName> 
         <plugins>
@@ -64,7 +60,5 @@
             </plugin>
         </plugins>
     </build>
-
-</project>
 
 </project>
