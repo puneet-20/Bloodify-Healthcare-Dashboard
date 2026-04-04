@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🩸 Bloodify Healthcare Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+    <div class="stApp">
+        <!-- Top Banner -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1><span class="blood-drop-emoji">🩸</span> Bloodify <span>Healthcare Dashboard</span></h1>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+                        <i id="theme-icon" class="fa-solid fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Global Dashboard Metrics -->
+            <div class="metrics-row">
+                <div class="metric-card">
+                    <div class="metric-icon"><i class="fa-solid fa-users"></i></div>
+                    <div class="metric-info">
+                        <h3>Total Donors</h3>
+                        <p id="totalDonorsCount">--</p>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon red-icon"><i class="fa-solid fa-truck-medical"></i></div>
+                    <div class="metric-info">
+                        <h3>Active Emergency Requests</h3>
+                        <p>14</p>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon"><i class="fa-solid fa-heart-pulse"></i></div>
+                    <div class="metric-info">
+                        <h3>Lives Saved (Estimated)</h3>
+                        <p>1,245</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="openTab(event, 'Dashboard1')"><i class="fa-solid fa-fingerprint"></i> Group Detection</button>
+                <button class="tab-btn" onclick="openTab(event, 'Dashboard2')"><i class="fa-solid fa-magnifying-glass"></i> Donor Finder</button>
+            </div>
+
+            <!-- ================= Dashboard 1 ================= -->
+            <div id="Dashboard1" class="tab-content active">
+                <div class="columns">
+                    <!-- Left Column -->
+                    <div class="card column left-col">
+                        <h3 class="card-title"><i class="fa-solid fa-camera"></i> Step 1: Capture Fingerprint</h3>
+                        <div class="stElement">
+                            <button class="stButton action-btn" onclick="captureFingerprint()">
+                                <i class="fa-solid fa-record-vinyl"></i> Initialize Scan
+                            </button>
+                            <p class="help-text">Requires SecuGen WebAPI on localhost:8443</p>
+                        </div>
+                        <div class="stElement">
+                            <label class="stLabel">Or upload from file (png, jpg, bmp):</label>
+                            <input type="file" id="fileUpload" class="stFileInput" accept=".png, .jpg, .jpeg, .bmp" onchange="handleFileUpload(event)">
+                        </div>
+                        
+                         <!-- Image display container moved here to balance left col -->
+                        <div class="image-preview-container" id="imageContainer" style="display: none; margin-top:20px;">
+                            <img id="fingerprintImage" src="" alt="Fingerprint">
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column: AI Analysis -->
+                    <div class="card column right-col">
+                        <h3 class="card-title"><i class="fa-solid fa-microchip"></i> AI Prediction Analysis</h3>
+                        <div class="prediction-box" id="predictionBox" style="display: none;">
+                            <div class="prediction-result">
+                                <h2>Predicted Blood Group</h2>
+                                <div class="huge-badge" id="predictedGroupValue">--</div>
+                                <div class="confidence-badge" id="confidenceLevelBadge">Confidence: High (98%)</div>
+                            </div>
+                            
+                            <div class="chart-wrapper">
+                                <canvas id="probabilityChart"></canvas>
+                            </div>
+                        </div>
+                        <div id="predictionPlaceholder" class="placeholder-text">
+                            <i class="fa-solid fa-chart-pie"></i><br>
+                            Capture or upload a fingerprint to view analysis.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Registration / Eligibility Form -->
+                <div class="card form-container">
+                    <h3 class="card-title"><i class="fa-solid fa-user-plus"></i> Step 2: Donor Registration & Eligibility</h3>
+                    <form id="saveDonorForm" onsubmit="saveDonor(event)">
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><i class="fa-regular fa-calendar-check"></i> Last Donation Date</label>
+                                <input type="date" id="lastDonation" required onchange="checkEligibility()">
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-stethoscope"></i> Current Health Condition</label>
+                                <select id="healthCondition" required onchange="checkEligibility()">
+                                    <option value="" disabled selected>Select</option>
+                                    <option value="Good">Good (No symptoms)</option>
+                                    <option value="Minor">Minor Cold/Cough</option>
+                                    <option value="Medication">On Antibiotics/Medication</option>
+                                </select>
+                            </div>
+                            <div class="form-group flex-center">
+                                <div id="eligibilityBadge" class="eligibility-status">Awaiting Input</div>
+                            </div>
+                        </div>
+
+                        <hr class="subtle-hr">
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" id="donorName" placeholder="e.g. John Doe" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Age (16–80)</label>
+                                <input type="number" id="donorAge" min="16" max="80" required>
+                            </div>
+                            <div class="form-group">
+                                <label>City</label>
+                                <input type="text" id="donorCity" placeholder="e.g. New York" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Contact Info (Phone/Email)</label>
+                                <input type="text" id="donorContact" placeholder="+1 234 567 8900" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm Blood Group</label>
+                                <select id="donorBloodGroup" required>
+                                    <option value="" disabled selected>Select</option>
+                                    <option value="A+">A+</option><option value="A-">A-</option>
+                                    <option value="B+">B+</option><option value="B-">B-</option>
+                                    <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                                    <option value="O+">O+</option><option value="O-">O-</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="stButton submit-btn" id="saveDonorBtn" disabled><i class="fa-solid fa-floppy-disk"></i> Complete Registration</button>
+                    </form>
+                    <div id="formMessage"></div>
+                </div>
+            </div>
+
+            <!-- ================= Dashboard 2 ================= -->
+            <div id="Dashboard2" class="tab-content" style="display: none;">
+                
+                <div class="card search-section">
+                    <div class="search-header">
+                        <h3 class="card-title"><i class="fa-solid fa-filter"></i> Search Filters</h3>
+                        <div class="emergency-toggle">
+                            <label class="switch">
+                                <input type="checkbox" id="emergencyToggle">
+                                <span class="slider round"></span>
+                            </label>
+                            <span class="emergency-label"><i class="fa-solid fa-triangle-exclamation"></i> Emergency Priority Mode</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Receiver Blood Group</label>
+                            <select id="searchBloodGroup" class="stSelect">
+                                <option value="A+">A+</option><option value="A-">A-</option>
+                                <option value="B+">B+</option><option value="B-">B-</option>
+                                <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                                <option value="O+">O+</option><option value="O-">O-</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Filter by City (Optional)</label>
+                            <input type="text" id="searchCity" placeholder="Enter City name">
+                        </div>
+                    </div>
+                    <button class="stButton action-btn" onclick="searchCompatibleDonors()" style="width: 100%; margin-top: 10px;">
+                        <i class="fa-solid fa-magnifying-glass"></i> Find Donors
+                    </button>
+                </div>
+                
+                <div id="compatibleDonorsContainer" class="expanders-container mt-4">
+                    <!-- Expanders injected here -->
+                </div>
+
+                <!-- Visual Compatibility Chart -->
+                <div class="card mt-4">
+                    <h3 class="card-title"><i class="fa-solid fa-diagram-project"></i> Blood Compatibility Matrix</h3>
+                    <div class="table-responsive">
+                        <table class="stTable compact-table">
+                            <thead>
+                                <tr>
+                                    <th>Type</th><th>Can Give To</th><th>Can Receive From</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><span class="badge badge-a">A+</span></td><td>A+, AB+</td><td>A+, A-, O+, O-</td></tr>
+                                <tr><td><span class="badge badge-a">A-</span></td><td>A+, A-, AB+, AB-</td><td>A-, O-</td></tr>
+                                <tr><td><span class="badge badge-b">B+</span></td><td>B+, AB+</td><td>B+, B-, O+, O-</td></tr>
+                                <tr><td><span class="badge badge-b">B-</span></td><td>B+, B-, AB+, AB-</td><td>B-, O-</td></tr>
+                                <tr><td><span class="badge badge-ab">AB+</span></td><td>AB+ (Universal Recipient)</td><td>Everyone</td></tr>
+                                <tr><td><span class="badge badge-ab">AB-</span></td><td>AB+, AB-</td><td>AB-, A-, B-, O-</td></tr>
+                                <tr><td><span class="badge badge-o">O+</span></td><td>O+, A+, B+, AB+</td><td>O+, O-</td></tr>
+                                <tr><td><span class="badge badge-o">O-</span></td><td>Everyone (Universal Donor)</td><td>O-</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <h3 class="card-title"><i class="fa-solid fa-list"></i> Global Donor Registry</h3>
+                    <div class="table-responsive">
+                        <table class="stTable" id="allDonorsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th><th>Name</th><th>Age</th><th>Blood Group</th><th>City</th><th>Contact</th><th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Data injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script th:src="@{/js/script.js}"></script>
+</body>
+</html>
