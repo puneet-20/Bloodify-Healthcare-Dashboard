@@ -44,6 +44,18 @@ PDF Report + QR Code
 ````
 
 ---
+## ML Service — Real-Time Fingerprint Blood Group Prediction
+
+Integrates live fingerprint capture (SecuGen Hamster Pro 20) with a trained CNN model that predicts blood group from the scanned fingerprint.
+
+**Flow:** SecuGen Scanner → SgiBioSrv (local client) → Browser → Spring Boot backend → FastAPI ML service (`/predict`) → Dashboard.
+
+### Prerequisites
+- Python 3.12+
+- SecuGen SgiBioSrv client app running locally (provides `https://localhost:8000/SGIFPCapture`)
+- SecuGen Hamster Pro 20 connected via USB
+
+### Setup
 
 ## ✨ Core Features
 
