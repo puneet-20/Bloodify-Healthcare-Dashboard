@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="_csrf" th:content="${_csrf.token}">
+<meta name="_csrf_header" th:content="${_csrf.headerName}">
+<title>Add donor - Bloodify Staff</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, Segoe UI, Arial, sans-serif; background: #f4f6fa; color: #1f2937; }
+  header { background: #b91c1c; color: #fff; padding: 22px 36px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  header h1 { margin: 0; font-size: 24px; }
+  nav { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  nav a, nav button { color: #fff; border: 1px solid #fff; background: transparent; padding: 10px 18px; border-radius: 8px; font-size: 16px; text-decoration: none; cursor: pointer; }
+  nav form { margin: 0; }
+  main { max-width: 900px; margin: 28px auto; padding: 0 16px 60px; }
+  .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 28px; }
+  .card h2 { margin-top: 0; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 14px; }
+  input[type=text], input[type=email], input[type=date], input[type=number], input[type=password], select, textarea {
+    width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; background: #fff; }
+  textarea { min-height: 80px; resize: vertical; }
+  .full { grid-column: 1 / -1; }
+  .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 500; }
+  .check input { margin-top: 4px; }
+  .err { color: #b91c1c; font-size: 13px; min-height: 16px; margin-top: 2px; }
+  .hint { color: #6b7280; font-size: 12px; }
+  button.primary { background: #b91c1c; color: #fff; border: 0; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; }
+  button.primary:disabled { opacity: .6; cursor: wait; }
+  .msg { margin-top: 14px; padding: 12px; border-radius: 8px; display: none; }
+  .msg.ok { display: block; background: #dcfce7; color: #166534; }
+  .msg.bad { display: block; background: #fee2e2; color: #991b1b; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bloodify Staff &middot; <span th:text="${username}">user</span></h1>
+  <nav>
+    <a href="/staff/donors">Donors</a>
+    <a href="/find-donors">Public list</a>
+    <a href="/">Dashboard</a>
+    <form method="post" action="/logout">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+      <button type="submit">Sign out</button>
+    </form>
+  </nav>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Add a donor</h2>
+    <form id="donorForm" novalidate>
+      <div class="grid">
+        <div class="full"><label for="fullName">Full name *</label>
+          <input type="text" id="fullName" maxlength="120" autocomplete="off"><div class="err" id="err-fullName"></div></div>
+
+        <div><label for="dateOfBirth">Date of birth * (18+)</label>
+          <input type="date" id="dateOfBirth"><div class="err" id="err-dateOfBirth"></div></div>
+
+        <div><label for="gender">Gender</label>
+          <select id="gender">
+            <option value="">Not specified</option>
+            <option>Male</option><option>Female</option><option>Other</option>
+          </select><div class="err" id="err-gender"></div></div>
+
+        <div><label for="bloodGroup">Blood group *</label>
+          <select id="bloodGroup">
+            <option value="">Select</option>
+            <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+            <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+          </select><div class="err" id="err-bloodGroup"></div></div>
+
+        <div><label for="weightKg">Weight (kg) * (min 45)</label>
+          <input type="number" id="weightKg" step="0.01" min="0"><div class="err" id="err-weightKg"></div></div>
+
+        <div><label for="phone">Phone *</label>
+          <input type="text" id="phone" inputmode="tel" placeholder="+919876543210"><div class="err" id="err-phone"></div></div>
+
+        <div><label for="email">Email</label>
+          <input type="email" id="email" maxlength="150"><div class="err" id="err-email"></div></div>
+
+        <div><label for="city">City *</label>
+          <input type="text" id="city" maxlength="80"><div class="err" id="err-city"></div></div>
+
+        <div><label for="lastDonationDate">Last donation date</label>
+          <input type="date" id="lastDonationDate"><div class="err" id="err-lastDonationDate"></div></div>
+
+        <div><label for="latitude">Latitude</label>
+          <input type="number" id="latitude" step="any"><div class="err" id="err-latitude"></div></div>
+
+        <div><label for="longitude">Longitude</label>
+          <input type="number" id="longitude" step="any"><div class="err" id="err-longitude"></div></div>
+
+        <div class="full check"><input type="checkbox" id="hasHealthIssues">
+          <label for="hasHealthIssues" style="font-weight:500">Donor has health issues</label></div>
+
+        <div class="full"><label for="healthNotes">Health notes</label>
+          <textarea id="healthNotes" maxlength="2000"></textarea>
+          <div class="hint">Staff only. Never shown on the public list.</div>
+          <div class="err" id="err-healthNotes"></div></div>
+
+        <div class="full check"><input type="checkbox" id="available" checked>
+          <label for="available" style="font-weight:500">Currently available to donate</label></div>
+
+        <div class="full check"><input type="checkbox" id="consent">
+          <label for="consent" style="font-weight:500">The donor consents to their details being stored, and to their first name, last initial, blood group, city and availability appearing on the public donor list. *</label></div>
+        <div class="err full" id="err-consent"></div>
+      </div>
+
+      <p><button type="submit" class="primary" id="saveBtn">Save donor</button></p>
+      <div class="msg" id="donorMsg"></div>
+    </form>
+  </section>
+
+  <section class="card" th:if="${isAdmin}">
+    <h2>Create a staff account (admin only)</h2>
+    <form id="staffForm" novalidate>
+      <div class="grid">
+        <div><label for="staffUser">Username</label>
+          <input type="text" id="staffUser" maxlength="60" autocomplete="off">
+          <div class="hint">Letters, digits, . _ - (3 to 60 characters)</div></div>
+        <div><label for="staffPass">Password (10+ characters)</label>
+          <input type="password" id="staffPass" maxlength="100" autocomplete="new-password"></div>
+      </div>
+      <p><button type="submit" class="primary" id="staffBtn">Create staff account</button></p>
+      <div class="msg" id="staffMsg"></div>
+    </form>
+  </section>
+</main>
+
+<script>
+  const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+  const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+
+  // The date pickers should not offer future dates.
+  const todayIso = new Date().toISOString().slice(0, 10);
+  document.getElementById('dateOfBirth').max = todayIso;
+  document.getElementById('lastDonationDate').max = todayIso;
+
+  function showMsg(el, text, ok) {
+    el.textContent = text;
+    el.className = 'msg ' + (ok ? 'ok' : 'bad');
+  }
+
+  function text(id) {
+    const v = document.getElementById(id).value.trim();
+    return v === '' ? null : v;
+  }
+  function num(id) {
+    const v = document.getElementById(id).value.trim();
+    return v === '' ? null : Number(v);
+  }
+
+  async function postJson(url, body) {
+    const headers = { 'Content-Type': 'application/json' };
+    headers[csrfHeader] = csrfToken;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(body),
+      credentials: 'same-origin'
+    });
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* no JSON body */ }
+    return { status: res.status, ok: res.ok, data: data };
+  }
+
+  function sessionOrCsrfMessage(status) {
+    if (status === 401) return 'Your session has expired. Please sign in again.';
+    if (status === 403) return 'Not allowed (or the security token expired). Reload the page and try again.';
+    return null;
+  }
+
+  // ---- Donor form ----
+  const donorForm = document.getElementById('donorForm');
+  const donorMsg = document.getElementById('donorMsg');
+  const saveBtn = document.getElementById('saveBtn');
+
+  donorForm.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    document.querySelectorAll('.err').forEach(e => { e.textContent = ''; });
+    donorMsg.className = 'msg';
+    donorMsg.textContent = '';
+
+    const body = {
+      fullName: text('fullName'),
+      dateOfBirth: text('dateOfBirth'),
+      gender: text('gender'),
+      bloodGroup: text('bloodGroup'),
+      phone: text('phone'),
+      email: text('email'),
+      city: text('city'),
+      latitude: num('latitude'),
+      longitude: num('longitude'),
+      weightKg: num('weightKg'),
+      hasHealthIssues: document.getElementById('hasHealthIssues').checked,
+      healthNotes: text('healthNotes'),
+      lastDonationDate: text('lastDonationDate'),
+      available: document.getElementById('available').checked,
+      consent: document.getElementById('consent').checked
+    };
+
+    saveBtn.disabled = true;
+    try {
+      const r = await postJson('/api/donors', body);
+      if (r.ok) {
+        showMsg(donorMsg, 'Donor saved to the database.', true);
+        donorForm.reset();
+        document.getElementById('available').checked = true;
+      } else if (r.status === 400 && r.data) {
+        const fields = r.data.fields || {};
+        const unplaced = [];
+        Object.keys(fields).forEach(key => {
+          const target = document.getElementById('err-' + (key === 'adult' ? 'dateOfBirth' : key));
+          if (target) { target.textContent = fields[key]; } else { unplaced.push(fields[key]); }
+        });
+        showMsg(donorMsg, unplaced.length ? unplaced.join('; ') : (r.data.error || 'Please fix the highlighted fields.'), false);
+      } else if (r.status === 409) {
+        showMsg(donorMsg, (r.data && r.data.error ? r.data.error : 'Conflict') + '. This donor (for example the email) may already exist.', false);
+      } else {
+        showMsg(donorMsg, sessionOrCsrfMessage(r.status) || 'Could not save (error ' + r.status + ').', false);
+      }
+    } catch (e) {
+      showMsg(donorMsg, 'Network error. Is the server running?', false);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  // ---- Staff account form (exists only for admins) ----
+  const staffForm = document.getElementById('staffForm');
+  if (staffForm) {
+    const staffMsg = document.getElementById('staffMsg');
+    const staffBtn = document.getElementById('staffBtn');
+    staffForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      staffMsg.className = 'msg';
+      staffMsg.textContent = '';
+      const username = document.getElementById('staffUser').value.trim();
+      const password = document.getElementById('staffPass').value;
+      staffBtn.disabled = true;
+      try {
+        const r = await postJson('/api/admin/users', { username: username, password: password });
+        if (r.status === 201) {
+          showMsg(staffMsg, 'Staff account "' + username + '" created.', true);
+          staffForm.reset();
+        } else if (r.status === 409) {
+          showMsg(staffMsg, 'That username already exists.', false);
+        } else if (r.status === 400 && r.data) {
+          showMsg(staffMsg, r.data.error || 'Invalid username or password.', false);
+        } else {
+          showMsg(staffMsg, sessionOrCsrfMessage(r.status) || 'Could not create account (error ' + r.status + ').', false);
+        }
+      } catch (e) {
+        showMsg(staffMsg, 'Network error. Is the server running?', false);
+      } finally {
+        staffBtn.disabled = false;
+      }
+    });
+  }
+</script>
+</body>
+</html>

@@ -5,4 +5,10 @@ ml-service/*.npz
 target/
 data/*.mv.db
 *.pyc
-.idea/
+.idea/.env
+run.log
+code-dump.txt
+filelist.txt
+application-local.properties
+application-local.yml
+.env

@@ -11,11 +11,12 @@
 </head>
 <body>
     <div class="stApp">
-        <!-- Top Banner -->
         <header class="app-header">
             <div class="header-content">
                 <h1><span class="blood-drop-emoji">🩸</span> Bloodify <span>Healthcare Dashboard</span></h1>
                 <div class="header-actions">
+                    <a href="/find-donors" class="icon-btn" style="text-decoration:none;padding:8px 14px;width:auto;" title="Public donor list"><i class="fa-solid fa-list"></i> Donor list</a>
+                    <a href="/staff/donors" class="icon-btn" style="text-decoration:none;padding:8px 14px;width:auto;" title="Staff login"><i class="fa-solid fa-user-lock"></i> Staff login</a>
                     <button class="icon-btn" onclick="toggleDarkMode()" title="Toggle Dark Mode">
                         <i id="theme-icon" class="fa-solid fa-moon"></i>
                     </button>
@@ -24,12 +25,11 @@
         </header>
 
         <main class="main-content">
-            <!-- Global Dashboard Metrics -->
             <div class="metrics-row">
                 <div class="metric-card">
                     <div class="metric-icon"><i class="fa-solid fa-users"></i></div>
                     <div class="metric-info">
-                        <h3>Total Donors</h3>
+                        <h3>Available Donors</h3>
                         <p id="totalDonorsCount">--</p>
                     </div>
                 </div>
@@ -49,7 +49,6 @@
                 </div>
             </div>
 
-            <!-- Tabs -->
             <div class="tabs">
                 <button class="tab-btn active" onclick="openTab(event, 'Dashboard1')"><i class="fa-solid fa-fingerprint"></i> Group Detection</button>
                 <button class="tab-btn" onclick="openTab(event, 'Dashboard2')"><i class="fa-solid fa-magnifying-glass"></i> Donor Finder</button>
@@ -58,7 +57,6 @@
             <!-- ================= Dashboard 1 ================= -->
             <div id="Dashboard1" class="tab-content active">
                 <div class="columns">
-                    <!-- Left Column -->
                     <div class="card column left-col">
                         <h3 class="card-title"><i class="fa-solid fa-camera"></i> Step 1: Capture Fingerprint</h3>
                         <div class="stElement">
@@ -71,14 +69,11 @@
                             <label class="stLabel">Or upload from file (png, jpg, bmp):</label>
                             <input type="file" id="fileUpload" class="stFileInput" accept=".png, .jpg, .jpeg, .bmp" onchange="handleFileUpload(event)">
                         </div>
-                        
-                         <!-- Image display container moved here to balance left col -->
                         <div class="image-preview-container" id="imageContainer" style="display: none; margin-top:20px;">
                             <img id="fingerprintImage" src="" alt="Fingerprint">
                         </div>
                     </div>
-                    
-                    <!-- Right Column: AI Analysis -->
+
                     <div class="card column right-col">
                         <h3 class="card-title"><i class="fa-solid fa-microchip"></i> AI Prediction Analysis</h3>
                         <div class="prediction-box" id="predictionBox" style="display: none;">
@@ -87,7 +82,6 @@
                                 <div class="huge-badge" id="predictedGroupValue">--</div>
                                 <div class="confidence-badge" id="confidenceLevelBadge">Confidence: High (98%)</div>
                             </div>
-                            
                             <div class="chart-wrapper">
                                 <canvas id="probabilityChart"></canvas>
                             </div>
@@ -99,74 +93,20 @@
                     </div>
                 </div>
 
-                <!-- Registration / Eligibility Form -->
                 <div class="card form-container">
-                    <h3 class="card-title"><i class="fa-solid fa-user-plus"></i> Step 2: Donor Registration & Eligibility</h3>
-                    <form id="saveDonorForm" onsubmit="saveDonor(event)">
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label><i class="fa-regular fa-calendar-check"></i> Last Donation Date</label>
-                                <input type="date" id="lastDonation" required onchange="checkEligibility()">
-                            </div>
-                            <div class="form-group">
-                                <label><i class="fa-solid fa-stethoscope"></i> Current Health Condition</label>
-                                <select id="healthCondition" required onchange="checkEligibility()">
-                                    <option value="" disabled selected>Select</option>
-                                    <option value="Good">Good (No symptoms)</option>
-                                    <option value="Minor">Minor Cold/Cough</option>
-                                    <option value="Medication">On Antibiotics/Medication</option>
-                                </select>
-                            </div>
-                            <div class="form-group flex-center">
-                                <div id="eligibilityBadge" class="eligibility-status">Awaiting Input</div>
-                            </div>
-                        </div>
-
-                        <hr class="subtle-hr">
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Full Name</label>
-                                <input type="text" id="donorName" placeholder="e.g. John Doe" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Age (16–80)</label>
-                                <input type="number" id="donorAge" min="16" max="80" required>
-                            </div>
-                            <div class="form-group">
-                                <label>City</label>
-                                <input type="text" id="donorCity" placeholder="e.g. New York" required>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Contact Info (Phone/Email)</label>
-                                <input type="text" id="donorContact" placeholder="+1 234 567 8900" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Confirm Blood Group</label>
-                                <select id="donorBloodGroup" required>
-                                    <option value="" disabled selected>Select</option>
-                                    <option value="A+">A+</option><option value="A-">A-</option>
-                                    <option value="B+">B+</option><option value="B-">B-</option>
-                                    <option value="AB+">AB+</option><option value="AB-">AB-</option>
-                                    <option value="O+">O+</option><option value="O-">O-</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button type="submit" class="stButton submit-btn" id="saveDonorBtn" disabled><i class="fa-solid fa-floppy-disk"></i> Complete Registration</button>
-                    </form>
-                    <div id="formMessage"></div>
+                    <h3 class="card-title"><i class="fa-solid fa-user-plus"></i> Step 2: Register this donor</h3>
+                    <p>Donor registration is done by authorised staff only. After a prediction, staff can continue to the donor form with the blood group pre-filled.</p>
+                    <a id="registerLink" href="/staff/add-donor" class="stButton submit-btn" style="display:inline-block;text-decoration:none;">
+                        <i class="fa-solid fa-user-lock"></i> Staff: open donor form
+                    </a>
                 </div>
             </div>
 
             <!-- ================= Dashboard 2 ================= -->
             <div id="Dashboard2" class="tab-content" style="display: none;">
-                
                 <div class="card search-section">
                     <div class="search-header">
-                        <h3 class="card-title"><i class="fa-solid fa-filter"></i> Search Filters</h3>
+                        <h3 class="card-title"><i class="fa-solid fa-filter"></i> Search Filters (staff only)</h3>
                         <div class="emergency-toggle">
                             <label class="switch">
                                 <input type="checkbox" id="emergencyToggle">
@@ -175,7 +115,7 @@
                             <span class="emergency-label"><i class="fa-solid fa-triangle-exclamation"></i> Emergency Priority Mode</span>
                         </div>
                     </div>
-                    
+
                     <div class="form-row">
                         <div class="form-group">
                             <label>Receiver Blood Group</label>
@@ -195,20 +135,15 @@
                         <i class="fa-solid fa-magnifying-glass"></i> Find Donors
                     </button>
                 </div>
-                
-                <div id="compatibleDonorsContainer" class="expanders-container mt-4">
-                    <!-- Expanders injected here -->
-                </div>
 
-                <!-- Visual Compatibility Chart -->
+                <div id="compatibleDonorsContainer" class="expanders-container mt-4"></div>
+
                 <div class="card mt-4">
                     <h3 class="card-title"><i class="fa-solid fa-diagram-project"></i> Blood Compatibility Matrix</h3>
                     <div class="table-responsive">
                         <table class="stTable compact-table">
                             <thead>
-                                <tr>
-                                    <th>Type</th><th>Can Give To</th><th>Can Receive From</th>
-                                </tr>
+                                <tr><th>Type</th><th>Can Give To</th><th>Can Receive From</th></tr>
                             </thead>
                             <tbody>
                                 <tr><td><span class="badge badge-a">A+</span></td><td>A+, AB+</td><td>A+, A-, O+, O-</td></tr>
@@ -225,24 +160,12 @@
                 </div>
 
                 <div class="card mt-4">
-                    <h3 class="card-title"><i class="fa-solid fa-list"></i> Global Donor Registry</h3>
-                    <div class="table-responsive">
-                        <table class="stTable" id="allDonorsTable">
-                            <thead>
-                                <tr>
-                                    <th>ID</th><th>Name</th><th>Age</th><th>Blood Group</th><th>City</th><th>Contact</th><th>Timestamp</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Data injected here -->
-                            </tbody>
-                        </table>
-                    </div>
+                    <p>Looking for a donor? See the <a href="/find-donors">public donor list</a>. Staff can <a href="/staff/donors">sign in</a> to see full details.</p>
                 </div>
             </div>
         </main>
     </div>
-    
+
     <script th:src="@{/js/script.js}"></script>
 </body>
 </html>

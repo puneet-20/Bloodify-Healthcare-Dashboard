@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+*.log
+run.log
+code-dump.txt
+filelist.txt
+target
+ml-service
+.idea
+.vscode
+*.md

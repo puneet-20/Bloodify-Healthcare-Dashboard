@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="_csrf" th:content="${_csrf.token}">
+<meta name="_csrf_header" th:content="${_csrf.headerName}">
+<title>Donors - Bloodify Staff</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, Segoe UI, Arial, sans-serif; background: #f4f6fa; color: #1f2937; }
+  header { background: #b91c1c; color: #fff; padding: 22px 36px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  header h1 { margin: 0; font-size: 24px; }
+  nav { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  nav a, nav button { color: #fff; border: 1px solid #fff; background: transparent; padding: 10px 18px; border-radius: 8px; font-size: 16px; text-decoration: none; cursor: pointer; }
+  nav form { margin: 0; }
+  main { max-width: 1300px; margin: 28px auto; padding: 0 16px 60px; }
+  .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  .stat { background: #fff; border-radius: 12px; padding: 16px 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); min-width: 150px; }
+  .stat b { display: block; font-size: 30px; }
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filters select, .filters input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; background: #fff; }
+  .filters button, .pager button { background: #b91c1c; color: #fff; border: 0; padding: 10px 20px; border-radius: 8px; font-size: 15px; cursor: pointer; }
+  .pager button:disabled { opacity: .45; cursor: default; }
+  .tablewrap { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #eef0f4; white-space: nowrap; }
+  th { background: #f1f4f9; }
+  .yes { color: #15803d; font-weight: 600; }
+  .no { color: #b91c1c; font-weight: 600; }
+  .pager { display: flex; gap: 14px; align-items: center; margin-top: 16px; }
+  #status { margin: 12px 0; color: #991b1b; }
+  .del { background: #7f1d1d; color: #fff; border: 0; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .del:hover { background: #991b1b; }
+</style>
+</head>
+<body th:attr="data-admin=${isAdmin}">
+<header>
+  <h1>Bloodify Staff &middot; <span th:text="${username}">user</span></h1>
+  <nav>
+    <a href="/staff/add-donor">Add donor</a>
+    <a href="/find-donors">Public list</a>
+    <a href="/">Dashboard</a>
+    <form method="post" action="/logout">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+      <button type="submit">Sign out</button>
+    </form>
+  </nav>
+</header>
+
+<main>
+  <div class="stats">
+    <div class="stat"><b id="statTotal">-</b>Total donors</div>
+    <div class="stat"><b id="statAvailable">-</b>Available</div>
+    <div class="stat"><b id="statEligible">-</b>Eligible now</div>
+  </div>
+
+  <div class="filters">
+    <select id="fBlood">
+      <option value="">All blood groups</option>
+      <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+      <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+    </select>
+    <input type="text" id="fCity" placeholder="City" maxlength="80">
+    <button id="filterBtn" type="button">Filter</button>
+  </div>
+
+  <div id="status"></div>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Name</th><th>Age</th><th>Group</th><th>City</th><th>Phone</th>
+          <th>Email</th><th>Last donation</th><th>Available</th><th>Eligible</th><th>Added by</th>
+          <th th:if="${isAdmin}">Action</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="pager">
+    <button id="prev" type="button">Previous</button>
+    <span id="pageInfo"></span>
+    <button id="next" type="button">Next</button>
+  </div>
+</main>
+
+<script>
+  const PAGE_SIZE = 20;
+  const IS_ADMIN = document.body.dataset.admin === 'true';
+  const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+  const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+
+  let page = 0;
+  let totalPages = 0;
+
+  const rowsEl = document.getElementById('rows');
+  const statusEl = document.getElementById('status');
+
+  async function getJson(url) {
+    const res = await fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+    if (res.status === 401) { window.location.href = '/login'; throw new Error('Not signed in'); }
+    if (!res.ok) { throw new Error('HTTP ' + res.status); }
+    return res.json();
+  }
+
+  function addCell(tr, value, cls) {
+    const td = document.createElement('td');
+    td.textContent = (value === null || value === undefined || value === '') ? '-' : String(value);
+    if (cls) { td.className = cls; }
+    tr.appendChild(td);
+  }
+
+  function yesNo(tr, flag) {
+    addCell(tr, flag ? 'Yes' : 'No', flag ? 'yes' : 'no');
+  }
+
+  async function deleteDonor(id, name) {
+    if (!confirm('Permanently delete ' + name + ' (ID ' + id + ')? This cannot be undone.')) { return; }
+    const headers = {};
+    headers[csrfHeader] = csrfToken;
+    try {
+      const res = await fetch('/api/admin/donors/' + encodeURIComponent(id), {
+        method: 'DELETE', headers: headers, credentials: 'same-origin'
+      });
+      if (res.status === 204) { loadStats(); loadPage(); return; }
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      statusEl.textContent =
+          res.status === 403 ? 'Only admins can delete donors (or the security token expired; reload the page).'
+        : res.status === 404 ? 'That donor no longer exists.'
+        : res.status === 409 ? 'This donor has linked records and could not be deleted.'
+        : 'Delete failed (error ' + res.status + ').';
+    } catch (e) {
+      statusEl.textContent = 'Network error while deleting.';
+    }
+  }
+
+  async function loadStats() {
+    try {
+      const s = await getJson('/api/donors/stats');
+      document.getElementById('statTotal').textContent = s.total;
+      document.getElementById('statAvailable').textContent = s.available;
+      document.getElementById('statEligible').textContent = s.eligible;
+    } catch (e) {
+      statusEl.textContent = 'Could not load statistics: ' + e.message;
+    }
+  }
+
+  async function loadPage() {
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('size', String(PAGE_SIZE));
+    params.set('bloodGroup', document.getElementById('fBlood').value);
+    params.set('city', document.getElementById('fCity').value.trim());
+    statusEl.textContent = '';
+    try {
+      const data = await getJson('/api/donors?' + params.toString());
+      totalPages = data.totalPages;
+      // If the last page became empty after a delete, step back one page.
+      if (data.items.length === 0 && page > 0) { page--; return loadPage(); }
+      rowsEl.replaceChildren();
+      data.items.forEach(d => {
+        const tr = document.createElement('tr');
+        addCell(tr, d.id);
+        addCell(tr, d.fullName);
+        addCell(tr, d.age);
+        addCell(tr, d.bloodGroup);
+        addCell(tr, d.city);
+        addCell(tr, d.phone);
+        addCell(tr, d.email);
+        addCell(tr, d.lastDonationDate);
+        yesNo(tr, d.available);
+        yesNo(tr, d.eligible);
+        addCell(tr, d.createdBy);
+        if (IS_ADMIN) {
+          const td = document.createElement('td');
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'del';
+          btn.textContent = 'Delete';
+          btn.addEventListener('click', () => deleteDonor(d.id, d.fullName));
+          td.appendChild(btn);
+          tr.appendChild(td);
+        }
+        rowsEl.appendChild(tr);
+      });
+      if (data.items.length === 0) { statusEl.textContent = 'No donors match these filters.'; }
+      document.getElementById('pageInfo').textContent =
+        'Page ' + (data.page + 1) + ' of ' + Math.max(data.totalPages, 1) + ' (' + data.totalItems + ' donors)';
+      document.getElementById('prev').disabled = data.page <= 0;
+      document.getElementById('next').disabled = data.page + 1 >= data.totalPages;
+    } catch (e) {
+      statusEl.textContent = 'Could not load donors: ' + e.message;
+    }
+  }
+
+  document.getElementById('filterBtn').addEventListener('click', () => { page = 0; loadPage(); });
+  document.getElementById('fCity').addEventListener('keydown', ev => { if (ev.key === 'Enter') { page = 0; loadPage(); } });
+  document.getElementById('prev').addEventListener('click', () => { if (page > 0) { page--; loadPage(); } });
+  document.getElementById('next').addEventListener('click', () => { if (page + 1 < totalPages) { page++; loadPage(); } });
+
+  loadStats();
+  loadPage();
+</script>
+</body>
+</html>

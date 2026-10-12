@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Find blood donors - Bloodify</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, Segoe UI, Arial, sans-serif; background: #f4f6fa; color: #1f2937; }
+  header { background: #b91c1c; color: #fff; padding: 22px 36px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  header h1 { margin: 0; font-size: 24px; }
+  nav { display: flex; gap: 12px; flex-wrap: wrap; }
+  nav a { color: #fff; border: 1px solid #fff; padding: 10px 18px; border-radius: 8px; font-size: 16px; text-decoration: none; }
+  main { max-width: 900px; margin: 28px auto; padding: 0 16px 60px; }
+  .intro { color: #4b5563; margin-bottom: 20px; }
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+  .stat { background: #fff; border-radius: 10px; padding: 10px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); text-align: center; min-width: 70px; }
+  .stat b { display: block; font-size: 22px; }
+  .stat.total { background: #b91c1c; color: #fff; }
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filters select, .filters input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; background: #fff; }
+  .filters button, .pager button { background: #b91c1c; color: #fff; border: 0; padding: 10px 20px; border-radius: 8px; font-size: 15px; cursor: pointer; }
+  .pager button:disabled { opacity: .45; cursor: default; }
+  .tablewrap { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #eef0f4; }
+  th { background: #f1f4f9; }
+  .yes { color: #15803d; font-weight: 600; }
+  .no { color: #b91c1c; font-weight: 600; }
+  .pager { display: flex; gap: 14px; align-items: center; margin-top: 16px; }
+  #status { margin: 12px 0; color: #991b1b; }
+  .note { margin-top: 24px; color: #6b7280; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bloodify &middot; Find donors</h1>
+  <nav>
+    <a href="/">Dashboard</a>
+    <a href="/staff/donors">Staff login</a>
+  </nav>
+</header>
+
+<main>
+  <p class="intro">Registered donors who agreed to be listed. To protect privacy we show only a first name, last initial, blood group and city. Contact is arranged through our staff.</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="filters">
+    <select id="fBlood">
+      <option value="">All blood groups</option>
+      <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+      <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+    </select>
+    <input type="text" id="fCity" placeholder="City" maxlength="80">
+    <button id="filterBtn" type="button">Search</button>
+  </div>
+
+  <div id="status"></div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Donor</th><th>Blood group</th><th>City</th><th>Available</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="pager">
+    <button id="prev" type="button">Previous</button>
+    <span id="pageInfo"></span>
+    <button id="next" type="button">Next</button>
+  </div>
+
+  <p class="note">The list refreshes automatically every 15 seconds.</p>
+</main>
+
+<script>
+  const PAGE_SIZE = 20;
+  const REFRESH_MS = 15000;
+  let page = 0;
+  let totalPages = 0;
+
+  const rowsEl = document.getElementById('rows');
+  const statusEl = document.getElementById('status');
+  const statsEl = document.getElementById('stats');
+
+  async function getJson(url) {
+    const res = await fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+    if (!res.ok) { throw new Error('HTTP ' + res.status); }
+    return res.json();
+  }
+
+  function addCell(tr, value, cls) {
+    const td = document.createElement('td');
+    td.textContent = (value === null || value === undefined || value === '') ? '-' : String(value);
+    if (cls) { td.className = cls; }
+    tr.appendChild(td);
+  }
+
+  function statBox(label, value, extraClass) {
+    const div = document.createElement('div');
+    div.className = 'stat' + (extraClass ? ' ' + extraClass : '');
+    const b = document.createElement('b');
+    b.textContent = String(value);
+    div.appendChild(b);
+    div.appendChild(document.createTextNode(label));
+    return div;
+  }
+
+  async function loadStats() {
+    try {
+      const s = await getJson('/api/public/stats');
+      statsEl.replaceChildren();
+      statsEl.appendChild(statBox('Available now', s.availableTotal, 'total'));
+      Object.keys(s.byBloodGroup).forEach(g => {
+        statsEl.appendChild(statBox(g, s.byBloodGroup[g]));
+      });
+    } catch (e) {
+      statsEl.replaceChildren();
+    }
+  }
+
+  async function loadPage() {
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('size', String(PAGE_SIZE));
+    params.set('bloodGroup', document.getElementById('fBlood').value);
+    params.set('city', document.getElementById('fCity').value.trim());
+    try {
+      const data = await getJson('/api/public/donors?' + params.toString());
+      statusEl.textContent = '';
+      totalPages = data.totalPages;
+      rowsEl.replaceChildren();
+      data.items.forEach(d => {
+        const tr = document.createElement('tr');
+        addCell(tr, d.displayName);
+        addCell(tr, d.bloodGroup);
+        addCell(tr, d.city);
+        addCell(tr, d.available ? 'Yes' : 'No', d.available ? 'yes' : 'no');
+        rowsEl.appendChild(tr);
+      });
+      if (data.items.length === 0) { statusEl.textContent = 'No donors match your search.'; }
+      document.getElementById('pageInfo').textContent =
+        'Page ' + (data.page + 1) + ' of ' + Math.max(data.totalPages, 1) + ' (' + data.totalItems + ' donors)';
+      document.getElementById('prev').disabled = data.page <= 0;
+      document.getElementById('next').disabled = data.page + 1 >= data.totalPages;
+    } catch (e) {
+      statusEl.textContent = 'Could not load donors right now. Retrying automatically.';
+    }
+  }
+
+  function search() { page = 0; loadPage(); }
+
+  document.getElementById('filterBtn').addEventListener('click', search);
+  document.getElementById('fBlood').addEventListener('change', search);
+  document.getElementById('fCity').addEventListener('keydown', ev => { if (ev.key === 'Enter') { search(); } });
+  document.getElementById('prev').addEventListener('click', () => { if (page > 0) { page--; loadPage(); } });
+  document.getElementById('next').addEventListener('click', () => { if (page + 1 < totalPages) { page++; loadPage(); } });
+
+  loadStats();
+  loadPage();
+  setInterval(() => {
+    if (!document.hidden) { loadStats(); loadPage(); }
+  }, REFRESH_MS);
+</script>
+</body>
+</html>

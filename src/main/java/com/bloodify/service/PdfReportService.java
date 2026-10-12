@@ -1,5 +1,6 @@
 package com.bloodify.service;
 
+import com.bloodify.dto.DonorView;
 import com.bloodify.model.Donor;
 import com.itextpdf.barcodes.BarcodeQRCode;
 import com.itextpdf.kernel.colors.ColorConstants;
@@ -7,78 +8,68 @@ import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
 import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
-import com.itextpdf.layout.element.Cell;
+import com.itextpdf.layout.properties.HorizontalAlignment;
 import com.itextpdf.layout.properties.TextAlignment;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 @Service
 public class PdfReportService {
 
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final ZoneId ZONE = ZoneId.of("Asia/Kolkata");
+
     public byte[] generateDonorReport(Donor donor) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            PdfWriter writer = new PdfWriter(baos);
-            PdfDocument pdf = new PdfDocument(writer);
-            Document document = new Document(pdf);
-            
-            // Header
-            Paragraph title = new Paragraph("🩸 Bloodify Healthcare Report")
-                    .setBold().setFontSize(22).setFontColor(ColorConstants.RED).setTextAlignment(TextAlignment.CENTER);
-            document.add(title);
+        try (PdfDocument pdf = new PdfDocument(new PdfWriter(baos));
+             Document document = new Document(pdf)) {
+
+            document.add(new Paragraph("Bloodify Healthcare Report")
+                    .setBold().setFontSize(22).setFontColor(ColorConstants.RED)
+                    .setTextAlignment(TextAlignment.CENTER));
             document.add(new Paragraph("Official Donor Verification Certificate")
-                    .setItalic().setTextAlignment(TextAlignment.CENTER).setFontColor(ColorConstants.GRAY));
-            
+                    .setItalic().setTextAlignment(TextAlignment.CENTER)
+                    .setFontColor(ColorConstants.GRAY));
             document.add(new Paragraph("\n"));
-            
-            // Layout Table
-            float[] columnWidths = {200f, 300f};
-            Table table = new Table(columnWidths);
-            
-            table.addCell(new Cell().add(new Paragraph("Donor ID")).setBold());
-            table.addCell(new Cell().add(new Paragraph(String.valueOf(donor.getId()))));
-            
-            table.addCell(new Cell().add(new Paragraph("Full Name")).setBold());
-            table.addCell(new Cell().add(new Paragraph(donor.getName())));
-            
-            table.addCell(new Cell().add(new Paragraph("Age")).setBold());
-            table.addCell(new Cell().add(new Paragraph(String.valueOf(donor.getAge()))));
-            
-            table.addCell(new Cell().add(new Paragraph("Blood Group")).setBold().setFontColor(ColorConstants.RED));
-            table.addCell(new Cell().add(new Paragraph(donor.getBloodGroup())).setBold());
-            
-            table.addCell(new Cell().add(new Paragraph("City")).setBold());
-            table.addCell(new Cell().add(new Paragraph(donor.getCity() != null ? donor.getCity() : "N/A")));
-            
-            table.addCell(new Cell().add(new Paragraph("Contact")).setBold());
-            table.addCell(new Cell().add(new Paragraph(donor.getContact())));
-            
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            table.addCell(new Cell().add(new Paragraph("Timestamp")).setBold());
-            table.addCell(new Cell().add(new Paragraph(donor.getTimestamp() != null ? donor.getTimestamp().format(formatter) : "N/A")));
-            
+
+            Table table = new Table(new float[]{200f, 300f});
+            addRow(table, "Donor ID", String.valueOf(donor.getId()));
+            addRow(table, "Full Name", donor.getFullName());
+            addRow(table, "Age", String.valueOf(DonorView.from(donor).age()));
+            addRow(table, "Blood Group", donor.getBloodGroup());
+            addRow(table, "City", donor.getCity() != null ? donor.getCity() : "N/A");
+            addRow(table, "Contact", donor.getPhone() != null ? donor.getPhone() : "N/A");
+            addRow(table, "Registered on", donor.getCreatedAt() != null
+                    ? donor.getCreatedAt().atZoneSameInstant(ZONE).format(FORMATTER) : "N/A");
             document.add(table);
             document.add(new Paragraph("\n\n"));
-            
-            // Generate QR Code
+
             String qrData = "https://bloodify-system.local/verify/" + donor.getId();
             BarcodeQRCode qrCode = new BarcodeQRCode(qrData);
             PdfFormXObject barcodeObject = qrCode.createFormXObject(ColorConstants.BLACK, pdf);
-            Image barcodeImage = new Image(barcodeObject).setWidth(100).setHeight(100).setHorizontalAlignment(com.itextpdf.layout.properties.HorizontalAlignment.CENTER);
+            Image barcodeImage = new Image(barcodeObject).setWidth(100).setHeight(100)
+                    .setHorizontalAlignment(HorizontalAlignment.CENTER);
             document.add(barcodeImage);
-            
+
             document.add(new Paragraph("\n"));
-            document.add(new Paragraph("Disclaimer: This report is generated by Bloodify Biometric System. Contact your local blood bank for official verification.").setItalic().setFontSize(10).setTextAlignment(TextAlignment.CENTER));
-            
-            document.close();
+            document.add(new Paragraph("Disclaimer: This report is generated by Bloodify Biometric System. "
+                    + "Contact your local blood bank for official verification.")
+                    .setItalic().setFontSize(10).setTextAlignment(TextAlignment.CENTER));
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Could not generate donor report", e);
         }
         return baos.toByteArray();
+    }
+
+    private void addRow(Table table, String label, String value) {
+        table.addCell(new Cell().add(new Paragraph(label)).setBold());
+        table.addCell(new Cell().add(new Paragraph(value != null ? value : "N/A")));
     }
 }

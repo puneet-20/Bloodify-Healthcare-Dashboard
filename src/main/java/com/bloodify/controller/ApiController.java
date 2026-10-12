@@ -1,94 +1,96 @@
 package com.bloodify.controller;
 
+import com.bloodify.dto.DonorView;
 import com.bloodify.model.Donor;
 import com.bloodify.repository.DonorRepository;
 import com.bloodify.service.ModelUtilsService;
 import com.bloodify.service.PdfReportService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api")
 public class ApiController {
 
-    @Autowired
-    private DonorRepository donorRepository;
+    private final DonorRepository donorRepository;
+    private final ModelUtilsService modelUtils;
+    private final PdfReportService pdfService;
 
-    @Autowired
-    private ModelUtilsService modelUtils;
+    public ApiController(DonorRepository donorRepository,
+                         ModelUtilsService modelUtils,
+                         PdfReportService pdfService) {
+        this.donorRepository = donorRepository;
+        this.modelUtils = modelUtils;
+        this.pdfService = pdfService;
+    }
 
-    @Autowired
-    private PdfReportService pdfService;
-
+    /** Public: fingerprint -> blood group prediction. Touches no donor data. */
     @PostMapping("/predict")
     public ResponseEntity<?> predict(@RequestBody Map<String, String> payload) {
         String base64Image = payload.get("image");
-        Map<String, Object> prediction = modelUtils.predictBloodGroup(base64Image);
-        return ResponseEntity.ok(prediction);
+        return ResponseEntity.ok(modelUtils.predictBloodGroup(base64Image));
     }
 
-    @PostMapping("/donor")
-    public ResponseEntity<?> addDonor(@RequestBody Donor donor) {
-        if(donor.getAge() < 16 || donor.getAge() > 80) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Age must be between 16 and 80"));
-        }
-        Donor saved = donorRepository.save(donor);
-        return ResponseEntity.ok(saved);
-    }
-
-    @GetMapping("/donors")
-    public List<Donor> getAllDonors() {
-        return donorRepository.findAllByOrderByTimestampDesc();
-    }
-
+    /** Staff only (once Step 7 security is on): compatible donors for a receiver. */
     @GetMapping("/donors/compatible")
-    public List<Donor> getCompatibleDonors(@RequestParam String receiverBg,
-                                           @RequestParam(required = false, defaultValue = "false") boolean emergency,
-                                           @RequestParam(required = false) String city) {
-        if(emergency) {
-            // Emergency: Closest compatible donors (matching city) + Universal Donors (O-)
-            List<String> compatibleGroups = modelUtils.getCompatibleDonors(receiverBg);
-            List<Donor> allMatches = new ArrayList<>();
-            if (city != null && !city.isBlank()) {
-                allMatches.addAll(donorRepository.findByBloodGroupInAndCityOrderByTimestampDesc(compatibleGroups, city));
-            }
-            List<Donor> universal = donorRepository.findByBloodGroupInOrderByTimestampDesc(Collections.singletonList("O-"));
-            
-            for(Donor u : universal) {
-                if(allMatches.stream().noneMatch(d -> d.getId().equals(u.getId()))) {
-                    allMatches.add(u);
+    public List<DonorView> getCompatibleDonors(@RequestParam String receiverBg,
+                                               @RequestParam(defaultValue = "false") boolean emergency,
+                                               @RequestParam(required = false) String city) {
+        List<String> groups = modelUtils.getCompatibleDonors(receiverBg);
+        if (groups.isEmpty()) {
+            return List.of();
+        }
+        boolean hasCity = city != null && !city.isBlank();
+
+        List<Donor> result = new ArrayList<>();
+        if (hasCity) {
+            result.addAll(donorRepository
+                    .findByBloodGroupInAndCityIgnoreCaseAndAvailableTrueOrderByCreatedAtDesc(groups, city.trim()));
+        } else if (!emergency) {
+            result.addAll(donorRepository
+                    .findByBloodGroupInAndAvailableTrueOrderByCreatedAtDesc(groups));
+        }
+
+        if (emergency) {
+            // Emergency: add universal donors (O-) from anywhere.
+            Set<Long> seen = new HashSet<>();
+            result.forEach(d -> seen.add(d.getId()));
+            for (Donor u : donorRepository
+                    .findByBloodGroupInAndAvailableTrueOrderByCreatedAtDesc(List.of("O-"))) {
+                if (seen.add(u.getId())) {
+                    result.add(u);
                 }
             }
-            return allMatches;
-        } else {
-            List<String> compatibleGroups = modelUtils.getCompatibleDonors(receiverBg);
-            if (city != null && !city.isBlank()) {
-                return donorRepository.findByBloodGroupInAndCityOrderByTimestampDesc(compatibleGroups, city);
-            }
-            return donorRepository.findByBloodGroupInOrderByTimestampDesc(compatibleGroups);
         }
+        return result.stream().map(DonorView::from).toList();
     }
 
-    @GetMapping("/donor/{id}/pdf")
+    /** Staff only (once Step 7 security is on): donor PDF report. */
+    @GetMapping("/donors/{id}/pdf")
     public ResponseEntity<byte[]> downloadPdf(@PathVariable Long id) {
-        Optional<Donor> opt = donorRepository.findById(id);
-        if(opt.isPresent()) {
-            byte[] pdfBytes = pdfService.generateDonorReport(opt.get());
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.setContentDispositionFormData("attachment", "donor_report_" + id + ".pdf");
-            return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
-        }
-        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        return donorRepository.findById(id)
+                .map(donor -> {
+                    byte[] pdfBytes = pdfService.generateDonorReport(donor);
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.setContentType(MediaType.APPLICATION_PDF);
+                    headers.setContentDispositionFormData("attachment", "donor_report_" + id + ".pdf");
+                    return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+                })
+                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 }
