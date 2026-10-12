@@ -191,32 +191,44 @@ async function saveDonor(event) {
 }
 
 async function loadAllDonors() {
+    const countEl = document.getElementById("totalDonorsCount");
     try {
         const response = await fetch('/api/donors');
-        const list = await response.json();
-        
-        // Update top metrics
-        document.getElementById("totalDonorsCount").innerText = list.length;
-        
-        // Render table
+        if (!response.ok) {
+            if (countEl) countEl.innerText = "—";
+            return;
+        }
+        const data = await response.json();
+        // Server returns {items, page, size, totalItems, totalPages}
+        const list = Array.isArray(data) ? data : (data.items || []);
+        const total = Array.isArray(data) ? data.length : (data.totalItems ?? list.length);
+
+        if (countEl) countEl.innerText = total;
+
+        // Render table (only exists on the staff page)
         const tbody = document.querySelector("#allDonorsTable tbody");
-        tbody.innerHTML = "";
-        list.forEach(d => {
-            tbody.innerHTML += `
+        if (tbody) {
+            tbody.innerHTML = list.map(d => {
+                const bg = d.bloodGroup || '';
+                const badge = bg.startsWith('A') ? 'badge-a' : bg.startsWith('B') ? 'badge-b' : 'badge-o';
+                const created = d.createdAt || d.timestamp;
+                return `
                 <tr>
                     <td>#${d.id}</td>
-                    <td>${d.name}</td>
+                    <td>${d.fullName || d.name || ''}</td>
                     <td>${d.age}</td>
-                    <td><span class="badge ${d.bloodGroup.startsWith('A')?'badge-a':d.bloodGroup.startsWith('B')?'badge-b':'badge-o'}">${d.bloodGroup}</span></td>
+                    <td><span class="badge ${badge}">${bg}</span></td>
                     <td>${d.city || 'N/A'}</td>
-                    <td>${d.contact}</td>
-                    <td style="font-size:0.85em; color:var(--text-secondary);">${d.timestamp ? d.timestamp.substring(0,10):''}</td>
-                </tr>
-            `;
-        });
-        
-        // Empty Search Results initially
-        document.getElementById("compatibleDonorsContainer").innerHTML = "<p class='placeholder-text'>Select filters and search to find compatible donors.</p>";
+                    <td>${d.phone || d.contact || ''}</td>
+                    <td style="font-size:0.85em; color:var(--text-secondary);">${created ? created.substring(0,10) : ''}</td>
+                </tr>`;
+            }).join("");
+        }
+
+        const container = document.getElementById("compatibleDonorsContainer");
+        if (container) {
+            container.innerHTML = "<p class='placeholder-text'>Select filters and search to find compatible donors.</p>";
+        }
     } catch (err) {
         console.error(err);
     }
@@ -226,48 +238,56 @@ async function searchCompatibleDonors() {
     const selectedBg = document.getElementById("searchBloodGroup").value;
     const city = document.getElementById("searchCity").value;
     const isEmerg = document.getElementById("emergencyToggle").checked;
-    
+    const container = document.getElementById("compatibleDonorsContainer");
+
     let url = `/api/donors/compatible?receiverBg=${encodeURIComponent(selectedBg)}&emergency=${isEmerg}`;
-    if(city) url += `&city=${encodeURIComponent(city)}`;
-    
+    if (city) url += `&city=${encodeURIComponent(city)}`;
+
     try {
         const response = await fetch(url);
-        const list = await response.json();
-        
-        const container = document.getElementById("compatibleDonorsContainer");
-        container.innerHTML = list.length === 0 ? "<div class='card'><p style='text-align:center;'>No compatible donors found.</p></div>" : "";
-        
-        list.forEach(d => {
+        if (!response.ok) {
+            container.innerHTML = `<div class='card'><p style='text-align:center;'>Search failed (HTTP ${response.status}). Please sign in as staff and try again.</p></div>`;
+            return;
+        }
+        const data = await response.json();
+        const list = Array.isArray(data) ? data : (data.items || []);
+
+        if (list.length === 0) {
+            container.innerHTML = "<div class='card'><p style='text-align:center;'>No compatible donors found.</p></div>";
+            return;
+        }
+
+        container.innerHTML = list.map(d => {
+            const name = d.fullName || d.name || 'Unknown';
+            const phone = d.phone || d.contact || '';
             const isUniversal = isEmerg && d.bloodGroup === 'O-';
-            const html = `
+            const lastDonation = d.lastDonationDate || 'Never';
+            return `
                 <details class="stExpander ${isUniversal ? 'emergency-card' : ''}">
                     <summary>
-                        <span><i class="fa-solid fa-droplet"></i> ${d.bloodGroup} | ${d.name}</span>
+                        <span><i class="fa-solid fa-droplet"></i> ${d.bloodGroup} | ${name}</span>
                         ${isUniversal ? '<span class="badge" style="background:var(--danger-color);color:white;">Universal Urgent Matches</span>' : ''}
                     </summary>
                     <div class="details-content">
                         <div class="card-badges">
                             <span class="badge badge-loc"><i class="fa-solid fa-location-dot"></i> ${d.city || 'Any'}</span>
-                            <span class="badge badge-loc"><i class="fa-regular fa-clock"></i> Last Active: ${d.timestamp ? d.timestamp.substring(0,10):'Unknown'}</span>
+                            <span class="badge badge-loc"><i class="fa-regular fa-clock"></i> Last donation: ${lastDonation}</span>
                         </div>
-                        <p><strong>Contact:</strong> ${d.contact} | <strong>Age:</strong> ${d.age}</p>
-                        
+                        <p><strong>Contact:</strong> ${phone} | <strong>Age:</strong> ${d.age}</p>
                         <div class="contact-actions">
                             <button class="stButton btn-sm action-btn" onclick="downloadReport(${d.id})"><i class="fa-solid fa-file-pdf"></i> Download FPDF</button>
-                            <a href="tel:${d.contact}" class="stButton btn-sm"><i class="fa-solid fa-phone"></i> Call</a>
-                            <a href="mailto:dummy@example.com" class="stButton btn-sm"><i class="fa-solid fa-envelope"></i> Email</a>
-                            <a href="https://wa.me/${d.contact.replace(/\D/g, '')}" target="_blank" class="stButton btn-sm whatsapp-btn"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
+                            <a href="tel:${phone}" class="stButton btn-sm"><i class="fa-solid fa-phone"></i> Call</a>
+                            <a href="mailto:${d.email || 'dummy@example.com'}" class="stButton btn-sm"><i class="fa-solid fa-envelope"></i> Email</a>
+                            <a href="https://wa.me/${phone.replace(/\D/g, '')}" target="_blank" class="stButton btn-sm whatsapp-btn"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
                         </div>
                     </div>
-                </details>
-            `;
-            container.innerHTML += html;
-        });
+                </details>`;
+        }).join("");
     } catch (err) {
         console.error(err);
+        container.innerHTML = "<div class='card'><p style='text-align:center;'>Something went wrong while searching. Check the browser console.</p></div>";
     }
 }
-
 function downloadReport(id) {
-    window.location.href = `/api/donor/${id}/pdf`;
+        window.location.href = `/api/donors/${id}/pdf`;
 }
