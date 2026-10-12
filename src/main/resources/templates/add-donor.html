@@ -227,7 +227,7 @@
         });
         showMsg(donorMsg, unplaced.length ? unplaced.join('; ') : (r.data.error || 'Please fix the highlighted fields.'), false);
       } else if (r.status === 409) {
-        showMsg(donorMsg, (r.data && r.data.error ? r.data.error : 'Conflict') + '. This donor (for example the email) may already exist.', false);
+        showMsg(donorMsg, (r.data && r.data.error) ? r.data.error : 'This donor (for example the email) may already exist.', false);
       } else {
         showMsg(donorMsg, sessionOrCsrfMessage(r.status) || 'Could not save (error ' + r.status + ').', false);
       }
