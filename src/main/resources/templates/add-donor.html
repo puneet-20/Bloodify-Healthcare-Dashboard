@@ -173,7 +173,15 @@
     if (status === 403) return 'Not allowed (or the security token expired). Reload the page and try again.';
     return null;
   }
-
+  // ---- Pre-fill blood group from ?bloodGroup=B%2B ----
+  (function () {
+    const wanted = new URLSearchParams(window.location.search).get('bloodGroup');
+    const select = document.getElementById('bloodGroup');
+    // Only accept a value that already exists in the dropdown.
+    if (wanted && Array.from(select.options).some(o => o.value === wanted)) {
+      select.value = wanted;
+    }
+  })();
   // ---- Donor form ----
   const donorForm = document.getElementById('donorForm');
   const donorMsg = document.getElementById('donorMsg');
