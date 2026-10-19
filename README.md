@@ -77,9 +77,8 @@ Integrates live fingerprint capture (SecuGen Hamster Pro 20) with a trained CNN 
 
 ### 🔎 Donor Matching
 - Filters based on:
-  - Blood group compatibility  
-  - City  
-- Optimized queries using JPA/Hibernate  
+ Implemented blood compatibility matching using a HashMap from recipient blood group to compatible donor groups, giving O(1) lookups instead of conditional checks.  
+ Built emergency donor ranking using a PriorityQueue with a custom Comparator (O- priority, exact blood match, longest time since last donation), returning the top donors  
 
 ---
 
